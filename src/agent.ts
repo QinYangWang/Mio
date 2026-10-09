@@ -1,7 +1,8 @@
 import { BACKGROUND_CONTEXT as ctx } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
+import { createModels, createProvider } from "@earendil-works/pi-ai/models";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, type Conversation, type ConversationId } from "@earendil-works/pi-durable";
 import { openNodeJsonlStorage } from "@earendil-works/pi-durable/storage/jsonl/node";
 import { join } from "node:path";
@@ -50,10 +51,10 @@ export class Agent {
           this.store.db.transaction(()=>{if(!this.store.get(key)){this.store.remember(e,args.note,args.tone);this.store.set(key,true);}})();
           return {content:[{type:"text",text:"Preference recorded if member has not opted out."}]};
         },replay:"safe"}),
-      defineTool({name:"grow",description:"Make small, evidence-backed changes to interests and expression. One change per local day, stable core identity.",parameters:Type.Object({evidenceId:Type.String(),reason:Type.String({maxLength:300}),trait:Type.Union([Type.Literal("playfulness"),Type.Literal("curiosity"),Type.Literal("warmth")]),delta:Type.Number({minimum:-0.02,maximum:0.02}),interest:Type.String({maxLength:60})}),replay:"safe",
+      defineTool({name:"grow",description:"Make small, evidence-backed changes to interests and expression. One change per local day, stable core identity.",parameters:Type.Object({evidenceId:Type.String(),reason:Type.String({maxLength:300}),trait:Type.Union([Type.Literal("playfulness"),Type.Literal("curiosity"),Type.Literal("warmth")]),delta:Type.Number({minimum:-0.1,maximum:0.1}),interest:Type.String({maxLength:60})}),replay:"safe",
         execute:async(args,api)=>{
           const e=this.source(args.evidenceId,api.conversationId);const date=day(Date.now(),this.cfg.zone);
-          grow(this.store,args,api.taskId,date,e.channel);
+          grow(this.store,args,api.taskId,date,e.channel,Date.now(),this.cfg.relaxLimits);
           return {content:[{type:"text",text:"Growth applied within daily bounds, or already settled today."}]};
         }}),
       defineTool({name:"create_plugin",description:`Create or update a read-only JSON API plugin; permitted hosts: ${this.cfg.hosts.join(",")}. URL may contain {query}; select is a dot path.`,parameters:Type.Object({name:Type.String(),description:Type.String(),url:Type.String(),select:Type.String()}),replay:"safe",
@@ -66,7 +67,43 @@ export class Agent {
         }})
     ]}));
     this.plugins.load();
-    const models=createModels();models.setProvider(openaiProvider());
+    const models=createModels();
+    models.setProvider(openaiProvider());
+
+    const isMagpie = this.cfg.provider === "magpie" || !!this.cfg.baseUrl || this.cfg.model.startsWith("antigravity/") || this.cfg.model.startsWith("codex/");
+    if (isMagpie) {
+      const magpieBaseUrl = this.cfg.baseUrl || "http://127.0.0.1:3425/v1";
+      const customProvider = createProvider({
+        id: "magpie",
+        name: "Magpie",
+        baseUrl: magpieBaseUrl,
+        auth: {
+          apiKey: {
+            name: "Magpie API Key",
+            login: async () => ({ type: "api_key", key: this.cfg.apiKey || "magpie" }),
+            resolve: async () => ({ auth: { apiKey: this.cfg.apiKey || "magpie" }, source: "config" })
+          }
+        },
+        models: [
+          {
+            id: this.cfg.model,
+            name: this.cfg.model,
+            api: "openai-completions",
+            provider: "magpie",
+            baseUrl: magpieBaseUrl,
+            reasoning: true,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 1048576,
+            maxTokens: 65536,
+            type: "chat"
+          }
+        ],
+        api: openAICompletionsApi()
+      });
+      models.setProvider(customProvider);
+    }
+
     this.harness=await Harness.open(await openNodeJsonlStorage(join(this.cfg.dir,"pi"),ctx,{fsync:true}),{
       models,registry:this.registry,settings:{retry:{maxRetries:3},toolExecution:"parallel",stream:{timeoutMs:120000}}
     },ctx);
@@ -86,7 +123,8 @@ export class Agent {
     const promise=(async()=>{
       const id=this.store.get<ConversationId>(`conversation:${lane}`);
       if(id){const existing=await this.harness.conversation(id,ctx);if(existing)return existing;throw new Error("Missing durable conversation");}
-      const c=await this.harness.createConversation({ownership:{kind:"ownerless"},agent:{model:{provider:"openai",modelId:this.cfg.model},instructions:init?"Generate a JSON persona as requested.":INSTRUCTIONS,tools:init?[]:undefined}},ctx);
+      const providerId = (this.cfg.provider === "magpie" || !!this.cfg.baseUrl || this.cfg.model.startsWith("antigravity/") || this.cfg.model.startsWith("codex/")) ? "magpie" : "openai";
+      const c=await this.harness.createConversation({ownership:{kind:"ownerless"},agent:{model:{provider:providerId,modelId:this.cfg.model},instructions:init?"Generate a JSON persona as requested.":INSTRUCTIONS,tools:init?[]:undefined}},ctx);
       this.store.set(`conversation:${lane}`,c.id);return c;
     })();
     this.conversations.set(lane,promise);promise.catch(()=>this.conversations.delete(lane));return promise;

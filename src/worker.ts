@@ -13,11 +13,11 @@ export class Worker {
     const e:Event=JSON.parse(job.payload);
     try {
       if(eligible(e,this.store,this.cfg)) {
-        const result=parseDecision(await this.brain.decide(e));
+        const result=parseDecision(await this.brain.decide(e),this.cfg.maxReplyLength);
         // Recheck pause and cooldown after generation; another lane may have spoken.
         if(result.action==="reply"&&eligible(e,this.store,this.cfg)) {
           const newer=this.store.db.query("SELECT COUNT(*) AS n FROM messages WHERE team=? AND channel=? AND CAST(ts AS REAL)>CAST(? AS REAL)").get(e.team,e.channel,e.ts) as {n:number};
-          if(e.direct||!newer.n) this.store.enqueue(e,result.text);
+          if(this.cfg.relaxLimits||e.direct||!newer.n) this.store.enqueue(e,result.text);
         }
       }
       this.store.done(job.id);
@@ -37,11 +37,11 @@ export class Worker {
   schedule(team:string,now=Date.now()) {
     if(quiet(now,this.cfg)) return;
     for(const channel of this.cfg.channels) {
-      if(this.store.get(`paused:${channel}`))continue;
+      if(channel==="*"||this.store.get(`paused:${channel}`))continue;
       const due=this.store.get<number>(`next-proactive:${channel}`)??now;
       const key=`proactive-count:${channel}:${day(now,this.cfg.zone)}`;
       if(now<due||(this.store.get<number>(key)??0)>=this.cfg.dailyLimit)continue;
-      if(this.store.sentRecently(channel,now-Math.max(this.cfg.cooldown,300000)))continue;
+      if(!this.cfg.relaxLimits&&this.store.sentRecently(channel,now-Math.max(this.cfg.cooldown,300000)))continue;
       const pending=this.store.db.query("SELECT COUNT(*) AS n FROM inbox WHERE status IN ('pending','running') AND json_extract(payload,'$.channel')=?").get(channel) as {n:number};
       if(pending.n)continue;
       this.store.db.transaction(()=>{

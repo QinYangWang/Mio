@@ -1,5 +1,5 @@
 {
-  "name": "slack-companion",
+  "name": "mio",
   "version": "1.0.0",
   "description": "Persistent, proactive Slack companion built with Bun and Pi Durable",
   "scripts": {
@@ -8,7 +8,8 @@
     "test": "bun test",
     "test:node": "node --experimental-transform-types --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "demo": "node --experimental-transform-types scripts/demo.ts"
+    "demo": "node --experimental-transform-types scripts/demo.ts",
+    "hooks:install": "git config --local core.hooksPath .githooks"
   },
   "keywords": [],
   "author": "",

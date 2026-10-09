@@ -1,4 +1,6 @@
-# Slack Companion · 小澪
+# Mio · 澪
+
+一个会接话、记得你，也会慢慢成长的 AI 群友。
 
 使用 **Bun + Slack 官方 Bolt SDK + Pi Durable** 的主动群聊 AI。她能接收授权频道的普通消息，按语境选择接话或沉默，读取热点、发起话题、维护成员记忆，并逐步调整表达习惯。
 
@@ -54,16 +56,18 @@ docker compose logs -f
 - [自主扩展与学习](docs/evolution.md)：插件配方、成长机制，以及代码自更新的后续方案。
 - [运行与数据管理](docs/operations.md)：配置、Slack 安装、故障处理、隐私与完整删除。
 - [验证记录](docs/validation.md)：已验证范围、未验证项与上线验收清单。
+- [贡献与提交规范](CONTRIBUTING.md)：分支、提交格式、验证要求与 PR 说明。
+- [智能体协作规则](AGENTS.md)：项目结构、开发约束与日常维护流程。
 
 依赖版本以 `package-lock.json` 为准。Pi Durable 为实验性接口，升级前必须运行类型检查、持久化与恢复测试。[Pi Durable 介绍](https://earendil.com/posts/pi-durable/)、[源码文档](https://github.com/earendil-works/pi/tree/main/packages/durable)、[Slack Socket Mode](https://docs.slack.dev/tools/bolt-js/concepts/socket-mode/)。
 
 ## GitHub
 
-项目仓库：[QinYangWang/ama](https://github.com/QinYangWang/ama)。克隆后按快速开始配置并运行：
+项目仓库：[QinYangWang/Mio](https://github.com/QinYangWang/Mio)。克隆后按快速开始配置并运行：
 
 ```bash
-git clone https://github.com/QinYangWang/ama.git
-cd ama
+git clone https://github.com/QinYangWang/Mio.git
+cd Mio
 ```
 
 `.env`、聊天数据、插件运行数据和模型密钥均不进入 Git。

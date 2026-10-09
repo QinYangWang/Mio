@@ -15,7 +15,7 @@
 - 当前执行环境中 Bun 1.4.2 原生进程启动代码时崩溃；`bun --version` 可运行，但不能据此宣称 Bun 测试通过。正式 Bun 环境需要运行 bun test 与启动检查。
 - 没有用户提供的 Slack/model 凭据，因此未进行真实 Socket Mode 接收、模型生成、新闻读取与发送联调。
 - Docker/Compose 构建与启动没有在此环境执行。
-- CI 已提供，但未推送 GitHub，尚未在 GitHub Actions 执行。
+- CI 已提供并随项目提交到 GitHub；本文尚未记录 GitHub Actions 的实际运行结果。
 - 多轮自然度、关系记忆真实性、误插话率、人设成长质量和 prompt injection 抵抗能力尚未做真实模型评测。
 
 ## 上线验收

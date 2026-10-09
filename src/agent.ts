@@ -111,11 +111,14 @@ export class Agent {
     if(!this.store.get<Persona>("persona")) {
       const c=await this.conversation("persona-initializer",true);
       const raw=await this.ask(c,`生成初始人设。名字：${this.cfg.name}；用户种子：${this.cfg.seed||"留空，按模型表达特点生成"}。只输出 JSON，包含 core(稳定身份与表达习惯字符串)、traits({playfulness,curiosity,warmth}，各0.15到0.85)、interests(至多12个字符串)。不假装真人。`,"persona-initial-v1");
-      const p=JSON.parse(raw.replace(/^```(?:json)?\s*/,"").replace(/\s*```$/, ""));
-      if(typeof p.core!=="string"||!p.core||p.core.length>2000||!Array.isArray(p.interests)||p.interests.some((s:unknown)=>typeof s!=="string")||!p.traits) throw new Error("Invalid generated persona");
+      const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      const p=JSON.parse(cleaned);
+      const maxCoreLen = this.cfg.relaxLimits ? 10000 : 4000;
+      if(typeof p.core!=="string"||!p.core||p.core.length>maxCoreLen||!Array.isArray(p.interests)||p.interests.some((s:unknown)=>typeof s!=="string")||!p.traits) throw new Error("Invalid generated persona");
       const traits:Record<string,number>={};
       for(const name of ["playfulness","curiosity","warmth"]){const n=p.traits[name];if(typeof n!=="number"||!Number.isFinite(n))throw new Error("Invalid persona trait");traits[name]=Math.max(0.15,Math.min(0.85,n));}
-      this.store.set("persona",{name:this.cfg.name,core:p.core,traits,interests:p.interests.slice(0,12),version:1});
+      const core = this.cfg.seed ? this.cfg.seed : p.core;
+      this.store.set("persona",{name:this.cfg.name,core,traits,interests:p.interests.slice(0,12),version:1});
     }
   }
   private conversation(lane:string,init=false):Promise<Conversation> {

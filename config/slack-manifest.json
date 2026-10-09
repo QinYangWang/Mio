@@ -1,0 +1,6 @@
+{
+  "display_information":{"name":"Slack Companion","description":"会参与聊天、记忆和成长的 AI 群友"},
+  "features":{"bot_user":{"display_name":"小澪","always_online":true},"slash_commands":[{"command":"/companion","description":"status | pause | resume | forget-me | retry <outbox-id>","should_escape":false}]},
+  "oauth_config":{"scopes":{"bot":["app_mentions:read","channels:history","channels:read","groups:history","groups:read","im:history","im:read","mpim:history","mpim:read","chat:write","commands"]}},
+  "settings":{"socket_mode_enabled":true,"event_subscriptions":{"bot_events":["message.channels","message.groups","message.im","message.mpim","app_mention"]},"interactivity":{"is_enabled":true},"org_deploy_enabled":false}
+}
